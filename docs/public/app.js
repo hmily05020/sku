@@ -681,7 +681,11 @@ function saveDeletedSkuIds(ids) {
 function loadCostRows() {
   try {
     const savedRows = JSON.parse(localStorage.getItem("roiSystemCostRows") || "null");
-    if (Array.isArray(savedRows) && savedRows.length) return savedRows;
+    if (Array.isArray(savedRows) && savedRows.length) {
+      const merged = mergeDefaultCosts(savedRows);
+      localStorage.setItem("roiSystemCostRows", JSON.stringify(merged));
+      return merged;
+    }
   } catch {}
 
   const rows = defaultCostRows();
@@ -705,11 +709,22 @@ function defaultCostRows() {
     "15g": 0.9,
     "15.6g": 0.9,
     "21g": 4.5,
+    "32g": 5,
+    "48g": 4.8,
     "45g": 3.9,
     "70g": 22,
     "88g": 6.9,
+    "98g": 8,
   };
   const rows = [];
+  for (const [component, unitCost] of Object.entries(preferredCosts)) {
+    upsertCostRow(rows, {
+      product: GENERAL_PRODUCT,
+      component,
+      unitCost,
+      source: "默认通用成本",
+    });
+  }
   for (const item of state.data.components) {
     if (preferredCosts[item.name] && Math.abs(item.unitCost - preferredCosts[item.name]) > 0.001) continue;
     upsertCostRow(rows, {
@@ -718,6 +733,15 @@ function defaultCostRows() {
       unitCost: item.unitCost,
       source: `${item.sourceProduct || item.sourceSheet} / ${item.sourceSpec}`,
     });
+  }
+  return rows;
+}
+
+function mergeDefaultCosts(savedRows) {
+  const rows = [...savedRows];
+  const defaults = defaultCostRows();
+  for (const row of defaults) {
+    if (!rows.some((item) => item.id === row.id)) rows.push(row);
   }
   return rows;
 }
