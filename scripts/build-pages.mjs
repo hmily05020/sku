@@ -15,11 +15,18 @@ html = html
   .replace('src="/public/app.js"', 'src="./public/app.js"');
 
 let app = await fs.readFile(path.join(root, "public", "app.js"), "utf8");
-app = app.replace('fetch("/src/data.json")', 'fetch("./src/data.json")');
+app = app
+  .replace('fetch("/src/data.json")', 'fetch("./src/data.json")')
+  .replace('fetch("/src/default-state.json"', 'fetch("./src/default-state.json"');
 
 await fs.writeFile(path.join(docsDir, "index.html"), html, "utf8");
 await fs.writeFile(path.join(docsDir, "public", "app.js"), app, "utf8");
 await fs.copyFile(path.join(root, "public", "styles.css"), path.join(docsDir, "public", "styles.css"));
 await fs.copyFile(path.join(root, "src", "data.json"), path.join(docsDir, "src", "data.json"));
+try {
+  await fs.copyFile(path.join(root, "src", "default-state.json"), path.join(docsDir, "src", "default-state.json"));
+} catch {
+  await fs.writeFile(path.join(docsDir, "src", "default-state.json"), "{}\n", "utf8");
+}
 
 console.log(`Built GitHub Pages files in ${docsDir}`);

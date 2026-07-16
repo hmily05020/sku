@@ -2,6 +2,7 @@ const GENERAL_PRODUCT = "通用";
 
 const state = {
   data: null,
+  bundledState: null,
   skus: [],
   costs: [],
   componentRows: [],
@@ -17,6 +18,7 @@ async function init() {
   cacheElements();
   const res = await fetch("./src/data.json");
   state.data = await res.json();
+  state.bundledState = await loadBundledState();
   state.skus = loadSkus();
   state.costs = loadCostRows();
   bindEvents();
@@ -73,6 +75,8 @@ function cacheElements() {
     "newPrice",
     "compareOutput",
     "resetCostsBtn",
+    "exportConfigBtn",
+    "importConfigInput",
     "newCostProduct",
     "newCostName",
     "newCostValue",
@@ -158,6 +162,8 @@ function bindEvents() {
     saveCostRows();
     renderAll();
   });
+  els.exportConfigBtn.addEventListener("click", exportConfig);
+  els.importConfigInput.addEventListener("change", importConfig);
   els.addCostBtn.addEventListener("click", addOrUpdateCost);
 }
 
@@ -657,6 +663,11 @@ function loadSkus() {
       return result;
     }
   } catch {}
+  if (Array.isArray(state.bundledState?.skus) && state.bundledState.skus.length) {
+    const bundled = state.bundledState.skus.filter((row) => !deleted.has(row.id));
+    localStorage.setItem("roiSystemSkus", JSON.stringify(bundled));
+    return bundled;
+  }
   const result = source.filter((row) => !deleted.has(row.id));
   localStorage.setItem("roiSystemSkus", JSON.stringify(result));
   return result;
@@ -688,7 +699,9 @@ function loadCostRows() {
     }
   } catch {}
 
-  const rows = defaultCostRows();
+  const rows = Array.isArray(state.bundledState?.costs) && state.bundledState.costs.length
+    ? mergeDefaultCosts(state.bundledState.costs)
+    : defaultCostRows();
   try {
     const oldCosts = JSON.parse(localStorage.getItem("roiSystemCosts") || "{}");
     for (const [component, meta] of Object.entries(oldCosts)) {
@@ -699,6 +712,17 @@ function loadCostRows() {
   } catch {}
   localStorage.setItem("roiSystemCostRows", JSON.stringify(rows));
   return rows;
+}
+
+async function loadBundledState() {
+  try {
+    const res = await fetch("./src/default-state.json", { cache: "no-store" });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json && typeof json === "object" ? json : null;
+  } catch {
+    return null;
+  }
 }
 
 function defaultCostRows() {
@@ -825,4 +849,43 @@ function escapeHtml(value) {
 
 function escapeAttr(value) {
   return escapeHtml(value).replace(/'/g, "&#39;");
+}
+
+function exportConfig() {
+  const payload = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    skus: JSON.parse(localStorage.getItem("roiSystemSkus") || "[]"),
+    costs: JSON.parse(localStorage.getItem("roiSystemCostRows") || "[]"),
+    deletedSkuIds: JSON.parse(localStorage.getItem("roiSystemDeletedSkuIds") || "[]"),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `roi-system-config-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function importConfig(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  try {
+    const config = JSON.parse(await file.text());
+    if (!Array.isArray(config.skus) || !Array.isArray(config.costs)) {
+      window.alert("配置文件格式不正确");
+      return;
+    }
+    localStorage.setItem("roiSystemSkus", JSON.stringify(config.skus));
+    localStorage.setItem("roiSystemCostRows", JSON.stringify(config.costs));
+    localStorage.setItem("roiSystemDeletedSkuIds", JSON.stringify(config.deletedSkuIds || []));
+    window.location.reload();
+  } catch {
+    window.alert("配置文件读取失败");
+  } finally {
+    event.target.value = "";
+  }
 }

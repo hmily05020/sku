@@ -271,7 +271,14 @@
               <h2>成本维护</h2>
               <p>按“产品 + 组件”维护成本；优先使用产品专属成本，通用成本只做兜底。</p>
             </div>
-            <button id="resetCostsBtn" type="button">恢复表格成本</button>
+            <div class="controls">
+              <button id="exportConfigBtn" type="button">导出配置</button>
+              <label class="file-button">
+                导入配置
+                <input id="importConfigInput" type="file" accept="application/json,.json" />
+              </label>
+              <button id="resetCostsBtn" type="button">恢复表格成本</button>
+            </div>
           </div>
 
           <div class="panel">
