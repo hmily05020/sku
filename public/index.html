@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>部门价格机制 ROI 测算系统</title>
+    <link rel="stylesheet" href="/public/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div>
+          <h1>价格机制测算</h1>
+          <p>部门内部现售机制与保本 ROI 快速测算</p>
+        </div>
+        <nav class="nav-tabs" aria-label="视图切换">
+          <button class="nav-tab active" data-view="overview">现售机制</button>
+          <button class="nav-tab" data-view="calculator">快速测算</button>
+          <button class="nav-tab" data-view="costs">成本维护</button>
+        </nav>
+        <div class="source-note">
+          <span>数据源</span>
+          <strong>SKU 机制表 + 盈亏测算表</strong>
+          <small id="dataTime"></small>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <section id="overviewView" class="view active">
+          <div class="toolbar">
+            <div>
+              <h2>各部门现售机制</h2>
+              <p>支持编辑/删除现售 SKU，并按渠道口径、退货率和平摊比例同步计算 ROI。</p>
+            </div>
+            <div class="controls">
+              <label>
+                部门
+                <select id="departmentFilter"></select>
+              </label>
+              <label>
+                商品
+                <select id="productFilter"></select>
+              </label>
+              <label>
+                渠道口径
+                <select id="overviewChannel">
+                  <option value="self">自营</option>
+                  <option value="influencer">达人带货</option>
+                </select>
+              </label>
+              <label>
+                搜索
+                <input id="searchInput" type="search" placeholder="商品 / SKU" />
+              </label>
+              <button id="addSkuBtn" type="button">新增机制</button>
+            </div>
+          </div>
+
+          <div class="panel overview-assumptions">
+            <label>
+              退货率%
+              <input id="overviewRefundRate" type="number" step="0.1" />
+            </label>
+            <label>
+              退货修正%
+              <input id="overviewRefundCorrectionRate" type="number" step="0.1" />
+            </label>
+            <label>
+              电商平摊%
+              <input id="overviewShareRate" type="number" step="0.1" />
+            </label>
+            <label>
+              平台扣点%
+              <input id="overviewPlatformRate" type="number" step="0.1" />
+            </label>
+            <label>
+              人工&其他%
+              <input id="overviewLaborRate" type="number" step="0.1" />
+            </label>
+            <label>
+              快递&打包
+              <input id="overviewShippingCost" type="number" step="0.01" />
+            </label>
+            <label>
+              运费险
+              <input id="overviewFreightInsurance" type="number" step="0.01" />
+            </label>
+            <label>
+              达人佣金%
+              <input id="overviewInfluencerRate" type="number" step="0.1" />
+            </label>
+            <label>
+              团长佣金%
+              <input id="overviewLeaderRate" type="number" step="0.1" />
+            </label>
+          </div>
+
+          <div class="metrics-grid">
+            <div class="metric">
+              <span>现售机制</span>
+              <strong id="metricSkuCount">0</strong>
+            </div>
+            <div class="metric">
+              <span>可直接测算</span>
+              <strong id="metricCalculatedCount">0</strong>
+            </div>
+            <div class="metric">
+              <span>缺成本机制</span>
+              <strong id="metricMissingCount">0</strong>
+            </div>
+            <div class="metric">
+              <span>平均含退 ROI</span>
+              <strong id="metricAvgRoi">-</strong>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>部门</th>
+                  <th>商品</th>
+                  <th>SKU / 机制</th>
+                  <th class="num">售价</th>
+                  <th class="num">退货率</th>
+                  <th class="num">产品成本</th>
+                  <th class="num">毛利率</th>
+                  <th class="num">去退 ROI</th>
+                  <th class="num">含退货 ROI</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="skuTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="calculatorView" class="view">
+          <div class="toolbar">
+            <div>
+              <h2>快速盈亏测算</h2>
+              <p>改售价、退货率、平摊比例或新增 SKU 组合后即时计算保本 ROI。</p>
+            </div>
+            <div class="controls wide-control">
+              <label>
+                套用已有机制
+                <select id="scenarioSelect"></select>
+              </label>
+            </div>
+          </div>
+
+          <div class="calculator-grid">
+            <section class="panel">
+              <h3>机制输入</h3>
+              <div class="form-grid">
+                <label>
+                  产品
+                  <input id="calcProduct" type="text" placeholder="例如 98g咖啡糖" />
+                </label>
+                <label>
+                  SKU 机制
+                  <input id="calcSpec" type="text" placeholder="例如 88g*1+15.6g*4" />
+                </label>
+                <label>
+                  渠道口径
+                  <select id="calcChannel">
+                    <option value="self">自营</option>
+                    <option value="influencer">达人带货</option>
+                  </select>
+                </label>
+                <label>
+                  售价
+                  <input id="calcPrice" type="number" step="0.01" />
+                </label>
+                <label>
+                  退货率%
+                  <input id="refundRate" type="number" step="0.1" />
+                </label>
+                <label>
+                  退货修正%
+                  <input id="refundCorrectionRate" type="number" step="0.1" />
+                </label>
+                <label>
+                  快递&打包
+                  <input id="shippingCost" type="number" step="0.01" />
+                </label>
+                <label>
+                  运费险
+                  <input id="freightInsurance" type="number" step="0.01" />
+                </label>
+                <label>
+                  达人佣金%
+                  <input id="influencerRate" type="number" step="0.1" />
+                </label>
+                <label>
+                  团长佣金%
+                  <input id="leaderRate" type="number" step="0.1" />
+                </label>
+                <label>
+                  平台扣点%
+                  <input id="platformRate" type="number" step="0.1" />
+                </label>
+                <label>
+                  电商平摊%
+                  <input id="shareRate" type="number" step="0.1" />
+                </label>
+                <label>
+                  人工&其他%
+                  <input id="laborRate" type="number" step="0.1" />
+                </label>
+              </div>
+            </section>
+
+            <section class="panel">
+              <h3>SKU 成本拆解</h3>
+              <div class="component-actions">
+                <button id="parseSpecBtn" type="button">解析机制</button>
+                <button id="addLineBtn" type="button">新增行</button>
+              </div>
+              <div class="component-list" id="componentList"></div>
+            </section>
+          </div>
+
+          <div class="result-grid">
+            <div class="result-card primary">
+              <span>推广保本 ROI（去退）</span>
+              <strong id="roiNetResult">-</strong>
+            </div>
+            <div class="result-card">
+              <span>推广保本 ROI（含退货）</span>
+              <strong id="roiRefundResult">-</strong>
+            </div>
+            <div class="result-card">
+              <span>毛利率</span>
+              <strong id="marginResult">-</strong>
+            </div>
+            <div class="result-card">
+              <span>毛利</span>
+              <strong id="profitResult">-</strong>
+            </div>
+            <div class="result-card">
+              <span>总产品成本</span>
+              <strong id="productCostResult">-</strong>
+            </div>
+            <div class="result-card">
+              <span>发货成本</span>
+              <strong id="deliveryCostResult">-</strong>
+            </div>
+          </div>
+
+          <section class="panel comparison-panel">
+            <h3>价格调整对比</h3>
+            <div class="comparison-row">
+              <label>
+                原售价
+                <input id="oldPrice" type="number" step="0.01" />
+              </label>
+              <label>
+                新售价
+                <input id="newPrice" type="number" step="0.01" />
+              </label>
+              <div class="compare-output" id="compareOutput"></div>
+            </div>
+          </section>
+        </section>
+
+        <section id="costsView" class="view">
+          <div class="toolbar">
+            <div>
+              <h2>成本维护</h2>
+              <p>按“产品 + 组件”维护成本；优先使用产品专属成本，通用成本只做兜底。</p>
+            </div>
+            <button id="resetCostsBtn" type="button">恢复表格成本</button>
+          </div>
+
+          <div class="panel">
+            <div class="cost-add-row">
+              <label>
+                产品
+                <input id="newCostProduct" type="text" placeholder="例如 98g咖啡糖" list="productList" />
+              </label>
+              <label>
+                组件
+                <input id="newCostName" type="text" placeholder="例如 98g" />
+              </label>
+              <label>
+                单件成本
+                <input id="newCostValue" type="number" step="0.01" />
+              </label>
+              <button id="addCostBtn" type="button">添加/更新</button>
+            </div>
+            <datalist id="productList"></datalist>
+            <div class="table-wrap compact">
+              <table>
+                <thead>
+                  <tr>
+                    <th>产品</th>
+                    <th>组件</th>
+                    <th class="num">单件成本</th>
+                    <th>来源</th>
+                  </tr>
+                </thead>
+                <tbody id="costTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="skuDialog">
+      <form method="dialog" class="dialog-card">
+        <h3 id="skuDialogTitle">编辑机制</h3>
+        <div class="form-grid dialog-grid">
+          <label>
+            部门
+            <select id="editDepartment"></select>
+          </label>
+          <label>
+            商品
+            <input id="editProduct" type="text" list="productList" />
+          </label>
+          <label>
+            SKU / 机制
+            <input id="editSku" type="text" />
+          </label>
+          <label>
+            售价
+            <input id="editPrice" type="number" step="0.01" />
+          </label>
+          <label>
+            单品退货率%
+            <input id="editRefundRate" type="number" step="0.1" placeholder="留空使用全局" />
+          </label>
+        </div>
+        <div class="dialog-actions">
+          <button id="cancelSkuEditBtn" type="button">取消</button>
+          <button id="saveSkuBtn" type="button">保存</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="/public/app.js" type="module"></script>
+  </body>
+</html>
