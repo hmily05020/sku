@@ -19,6 +19,7 @@ async function init() {
   const res = await fetch("./src/data.json");
   state.data = await res.json();
   state.bundledState = await loadBundledState();
+  applyBundledStateOnce();
   state.skus = loadSkus();
   state.costs = loadCostRows();
   bindEvents();
@@ -723,6 +724,25 @@ async function loadBundledState() {
   } catch {
     return null;
   }
+}
+
+function applyBundledStateOnce() {
+  const exportedAt = state.bundledState?.exportedAt;
+  if (!exportedAt) return;
+
+  const markerKey = "roiSystemBundledStateApplied";
+  if (localStorage.getItem(markerKey) === exportedAt) return;
+
+  if (Array.isArray(state.bundledState.skus)) {
+    localStorage.setItem("roiSystemSkus", JSON.stringify(state.bundledState.skus));
+  }
+  if (Array.isArray(state.bundledState.costs)) {
+    localStorage.setItem("roiSystemCostRows", JSON.stringify(state.bundledState.costs));
+  }
+  if (Array.isArray(state.bundledState.deletedSkuIds)) {
+    localStorage.setItem("roiSystemDeletedSkuIds", JSON.stringify(state.bundledState.deletedSkuIds));
+  }
+  localStorage.setItem(markerKey, exportedAt);
 }
 
 function defaultCostRows() {
